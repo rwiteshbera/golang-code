@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,14 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	config "github.com/rwiteshbera/orbit/config"
+	routes "github.com/rwiteshbera/orbit/routes"
 )
-
-var db *sql.DB
-
-func init() {
-	db = config.GetDatabase()
-}
 
 func main() {
 	if err := godotenv.Load(); err != nil {
@@ -33,7 +26,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 
-	// routes.AuthRoutes(router) // routes/authRoutes.go
+	routes.AuthRoutes(router) // routes/authRoutes.go
 	// routes.UserRoutes(router) // routes/userRoutes.go
 
 	router.GET("/api", func(c *gin.Context) {
