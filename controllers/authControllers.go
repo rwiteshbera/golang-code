@@ -33,7 +33,7 @@ func Signup() gin.HandlerFunc {
 		}
 
 		// Query for inserting data into users table
-		queryForSignup := "INSERT INTO `users` (user_id, name, email, hash_password, created_at) VALUES(?, ?, ?, ?, ?)"
+		queryForSignup := "INSERT INTO `users` (user_id, username, fullname, email, hash_password, created_at) VALUES(?, ?, ?, ?, ?, ?)"
 
 		// Query to fetch row by matching the email // Check for existing user
 		queryForExistingEmailCheck := "SELECT * FROM users WHERE email = ?"
@@ -67,7 +67,7 @@ func Signup() gin.HandlerFunc {
 			user.CreatedAt, _ = time.Parse(time.RFC1123, time.Now().Format(time.RFC1123)) // When the account is created
 
 			// Inserting data
-			res, err := statement.ExecContext(ctx, user.UserId, user.Name, user.Email, user.Password, user.CreatedAt)
+			res, err := statement.ExecContext(ctx, user.UserId, user.UserName, user.FullName, user.Email, user.Password, user.CreatedAt)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error": err.Error()})
@@ -90,6 +90,7 @@ func Signup() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Email already exists!"})
 			return
 		}
+
 	}
 }
 
@@ -106,14 +107,15 @@ func Login() gin.HandlerFunc {
 		defer cancel()
 
 		// Query to fetch row by matching the email // Check for existing user
-		queryForExistingEmailCheck := "SELECT user_id, name, email, hash_password FROM users WHERE email = ?"
+		queryForExistingEmailCheck := "SELECT user_id, username, fullname, email, hash_password FROM users WHERE email = ?"
 
 		var savedUserUID string
-		var savedUserEmail string
+		var savedUserUserName string
 		var savedUserFullName string
+		var savedUserEmail string
 		var savedUserPassword string
 
-		if err1 := db.QueryRowContext(ctx, queryForExistingEmailCheck, user.Email).Scan(&savedUserUID, &savedUserFullName, &savedUserEmail, &savedUserPassword); err1 == sql.ErrNoRows {
+		if err1 := db.QueryRowContext(ctx, queryForExistingEmailCheck, user.Email).Scan(&savedUserUID, &savedUserUserName, &savedUserFullName, &savedUserEmail, &savedUserPassword); err1 == sql.ErrNoRows {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "no user found"})
 			return
 		}
@@ -126,12 +128,12 @@ func Login() gin.HandlerFunc {
 			return
 		}
 
-		// Split the first name and lastname
+		// Split the firstname and lastname
 		splitName := strings.Split(savedUserFullName, " ")
 		var savedUserFirstName string = splitName[0]
 		var savedUserLastName string = splitName[1]
 
-		token, err := helpers.GenerateToken(savedUserEmail, savedUserFirstName, savedUserLastName, savedUserUID)
+		token, err := helpers.GenerateToken(savedUserEmail, savedUserUserName, savedUserFirstName, savedUserLastName, savedUserUID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

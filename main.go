@@ -27,7 +27,7 @@ func main() {
 	router.Use(gin.Recovery())
 
 	routes.AuthRoutes(router) // routes/authRoutes.go
-	// routes.UserRoutes(router) // routes/userRoutes.go
+	routes.UserRoutes(router) // routes/userRoutes.go
 
 	router.GET("/api", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})

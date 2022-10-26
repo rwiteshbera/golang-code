@@ -12,13 +12,14 @@ import (
 
 type SignedUserDetails struct {
 	Email     string
+	Username  string
 	FirstName string
 	LastName  string
 	UserId    string
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(email string, firstname string, lastname string, uid string) (string, error) {
+func GenerateToken(email string, username string, firstname string, lastname string, uid string) (string, error) {
 	if err := godotenv.Load(".env"); err != nil {
 		log.Fatal(err)
 	}
@@ -27,6 +28,7 @@ func GenerateToken(email string, firstname string, lastname string, uid string) 
 
 	claims := SignedUserDetails{
 		Email:     email,
+		Username:  username,
 		FirstName: firstname,
 		LastName:  lastname,
 		UserId:    uid,
