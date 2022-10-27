@@ -10,3 +10,11 @@ type User struct {
 	Password  string    `json:"hash_password"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type SavedUser struct {
+	UserId    string
+	UserName  string
+	FullName  string
+	Email     string
+	IsPremium string
+}

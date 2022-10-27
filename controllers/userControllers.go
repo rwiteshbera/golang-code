@@ -7,30 +7,28 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rwiteshbera/orbit/models"
 )
-
-type savedUser struct {
-	UserName string
-	FullName string
-	Email    string
-}
 
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		username := c.Query("name")
+
+		loggedInUsername, _ := c.Get("username") // Fetching authorized username
+
+		username := c.DefaultQuery("name", loggedInUsername.(string)) // If no username is provided, then it will return authorized user's own details
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		queryForUserDataFetch := "SELECT username, fullname, email FROM users WHERE username = ?"
+		queryForUserDataFetch := "SELECT username, fullname, email, premium FROM users WHERE username = ?"
 
-		var userdata savedUser
+		var userdata models.SavedUser
 
-		if err := db.QueryRowContext(ctx, queryForUserDataFetch, username).Scan(&userdata.UserName, &userdata.FullName, &userdata.Email); err == sql.ErrNoRows {
+		if err := db.QueryRowContext(ctx, queryForUserDataFetch, username).Scan(&userdata.UserName, &userdata.FullName, &userdata.Email, &userdata.IsPremium); err == sql.ErrNoRows {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "no user found"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"user": userdata})
+		c.JSON(http.StatusOK, gin.H{"username": userdata.UserName, "fullname": userdata.FullName, "email": userdata.Email, "premium": userdata.IsPremium})
 	}
 }
