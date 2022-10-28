@@ -28,11 +28,7 @@ func Authenticate() gin.HandlerFunc {
 			c.Abort()
 		}
 
-		c.Set("username", claims.Username)
-		c.Set("firstname", claims.FirstName)
-		c.Set("lastname", claims.LastName)
-		c.Set("email", claims.Email)
-		c.Set("ispremium", claims.IsPremium)
+		c.Set("userid", claims.UserId)
 		c.Next()
 	}
 }

@@ -5,16 +5,20 @@ import "time"
 type User struct {
 	UserId    string    `json:"user_id"`
 	UserName  string    `json:"username"`
-	FullName  string    `json:"fullname"`
+	FirstName string    `json:"firstname"`
+	LastName  string    `json:"lastname"`
 	Email     string    `json:"email"`
 	Password  string    `json:"hash_password"`
 	CreatedAt time.Time `json:"created_at"`
+	LastLogin time.Time `json:"last_login"`
 }
 
 type SavedUser struct {
 	UserId    string
 	UserName  string
-	FullName  string
+	FirstName string
+	LastName  string
 	Email     string
 	IsPremium string
+	LastLogin string
 }

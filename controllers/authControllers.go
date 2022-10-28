@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +32,7 @@ func Signup() gin.HandlerFunc {
 		}
 
 		// Query for inserting data into users table
-		queryForSignup := "INSERT INTO `users` (user_id, username, fullname, email, hash_password, created_at) VALUES(?, ?, ?, ?, ?, ?)"
+		queryForSignup := "INSERT INTO `users` (user_id, username, firstname, lastname, email, hash_password, created_at, last_login) VALUES(?, ?, ?, ?, ?, ?, ?, ?)"
 
 		// Query to fetch row by matching the email // Check for existing user
 		queryForExistingEmailOrUsernameCheck := "SELECT * FROM users WHERE (email = ? OR username = ?)"
@@ -65,9 +64,9 @@ func Signup() gin.HandlerFunc {
 			user.UserId = uuid.New().String() // Create a random id for user
 			user.Password = hashedPassword
 			user.CreatedAt, _ = time.Parse(time.RFC1123, time.Now().Format(time.RFC1123)) // When the account is created
-
+			user.LastLogin, _ = time.Parse(time.RFC1123, time.Now().Format(time.RFC1123))
 			// Inserting data
-			res, err := statement.ExecContext(ctx, user.UserId, user.UserName, user.FullName, user.Email, user.Password, user.CreatedAt)
+			res, err := statement.ExecContext(ctx, user.UserId, user.UserName, user.FirstName, user.LastName, user.Email, user.Password, user.CreatedAt, user.LastLogin)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error": err.Error()})
@@ -83,7 +82,7 @@ func Signup() gin.HandlerFunc {
 			}
 
 			// return a response
-			c.JSON(http.StatusOK, gin.H{"rows": rows, "username": user.UserName, "fullname": user.FullName, "email": user.Email, "created_at": user.CreatedAt})
+			c.JSON(http.StatusOK, gin.H{"rows": rows, "username": user.UserName, "fullname": user.FirstName + " " + user.LastName, "email": user.Email, "created_at": user.CreatedAt})
 			return
 		} else {
 			// If the email is already used by user
@@ -107,13 +106,13 @@ func Login() gin.HandlerFunc {
 		defer cancel()
 
 		// Query to fetch row by matching the email // Check for existing user
-		queryForExistingEmailCheck := "SELECT user_id, username, fullname, email, premium, hash_password FROM users WHERE email = ?"
+		queryForExistingEmailCheck := "SELECT user_id, username, firstname, lastname, email, premium, hash_password FROM users WHERE email = ?"
 
 		var savedUserPassword string
 
-		var userdata models.SavedUser
+		var savedUserData models.SavedUser
 
-		if err1 := db.QueryRowContext(ctx, queryForExistingEmailCheck, user.Email).Scan(&userdata.UserId, &userdata.UserName, &userdata.FullName, &userdata.Email, &userdata.IsPremium, &savedUserPassword); err1 == sql.ErrNoRows {
+		if err1 := db.QueryRowContext(ctx, queryForExistingEmailCheck, user.Email).Scan(&savedUserData.UserId, &savedUserData.UserName, &savedUserData.FirstName, &savedUserData.LastName, &savedUserData.Email, &savedUserData.IsPremium, &savedUserPassword); err1 == sql.ErrNoRows {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "no user found"})
 			return
 		}
@@ -126,17 +125,33 @@ func Login() gin.HandlerFunc {
 			return
 		}
 
-		// Split the firstname and lastname
-		splitName := strings.Split(userdata.FullName, " ")
-		var savedUserFirstName string = splitName[0]
-		var savedUserLastName string = splitName[1]
-
-		token, err := helpers.GenerateToken(userdata.Email, userdata.UserName, savedUserFirstName, savedUserLastName, userdata.UserId, userdata.IsPremium)
+		token, err := helpers.GenerateToken(savedUserData.Email, savedUserData.UserName, savedUserData.FirstName, savedUserData.LastName, savedUserData.UserId, savedUserData.IsPremium)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"token": token})
+		// Update the last login data
+		sqlQueryToUpdateLastLogin := "UPDATE users SET last_login = ? WHERE email = ?"
+		statement, err := db.PrepareContext(ctx, sqlQueryToUpdateLastLogin)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		LastLogin, _ := time.Parse(time.RFC1123, time.Now().Format(time.RFC1123)) // When the account is last logged in
+
+		res, err := statement.ExecContext(ctx, LastLogin, savedUserData.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		rows, err := res.RowsAffected()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"token": token, "rows": rows})
 	}
 }
