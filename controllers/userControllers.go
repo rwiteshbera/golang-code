@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -178,5 +179,72 @@ func DeleteAccount() gin.HandlerFunc {
 		}
 		fmt.Println(rows)
 		c.JSON(http.StatusOK, gin.H{"message": "Account deleted successfully"})
+	}
+}
+
+// Purchase Premium / Get Premium
+// http://localhost:5000/user/purchase_premium?year=2
+func PurchasePremium() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userid, _ := c.Get("userid")
+		year := c.DefaultQuery("year", "1")
+
+		yearValue, err := strconv.ParseInt(year, 0, 64)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+			return
+		}
+
+		if yearValue <= 0 || yearValue > 3 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
+			return
+		}
+
+		// Query to check whether the user has premium membership or not
+		queryToCheckAlreadyPremium := "SELECT premium, premiumExpiry FROM users WHERE user_id = ?"
+
+		var isPremiumMember string
+		var premiumExpiryDate string
+
+		if err := db.QueryRow(queryToCheckAlreadyPremium, userid).Scan(&isPremiumMember, &premiumExpiryDate); err != nil {
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusInternalServerError, gin.H{"message": "no user found"})
+				return
+			}
+		}
+
+		// Query to update premium membership in DB
+		queryToAddPremium := "UPDATE users SET premium = 'true', premiumPurchase = ?, premiumExpiry = ? WHERE user_id = ?"
+
+		Purchased, _ := time.Parse(time.RFC1123, time.Now().Format(time.RFC1123))
+		Expiry, _ := time.Parse(time.RFC1123, time.Now().Add(time.Hour*24*365*time.Duration(yearValue)).Format(time.RFC1123))
+
+		if isPremiumMember == "false" {
+			result1, err1 := db.Exec(queryToAddPremium, Purchased, Expiry, userid)
+
+			if err1 != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err1.Error()})
+				return
+			}
+
+			rows1, err := result1.RowsAffected()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			fmt.Println(rows1)
+
+			var unit string
+			if yearValue == 1 {
+				unit = " year"
+			} else {
+				unit = " years"
+			}
+			c.JSON(http.StatusOK, gin.H{"message": "Purchased subscription for " + year + unit})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Your already have a premium subscription", "Expiry": premiumExpiryDate})
+			return
+		}
 	}
 }

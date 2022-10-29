@@ -7,8 +7,9 @@ import (
 )
 
 func UserRoutes(incomingRoutes *gin.Engine) {
-	incomingRoutes.Use(middlewares.Authenticate())                   // Check whether the routes are authenticated or not
-	incomingRoutes.GET("/user", controllers.GetUser())               //  /user or /user?name=user123
-	incomingRoutes.POST("/user/edit", controllers.EditUser())        // Edit account details
-	incomingRoutes.POST("/user/delete", controllers.DeleteAccount()) // Delete user account
+	incomingRoutes.Use(middlewares.Authenticate())                               // Check whether the routes are authenticated or not
+	incomingRoutes.GET("/user", controllers.GetUser())                           //  /user or /user?name=user123
+	incomingRoutes.POST("/user/edit", controllers.EditUser())                    // Edit account details
+	incomingRoutes.POST("/user/delete", controllers.DeleteAccount())             // Delete user account
+	incomingRoutes.POST("/user/purchase_premium", controllers.PurchasePremium()) // Purchase Premium Membership for 1 Year, 2 Years, 3 Years only
 }

@@ -14,11 +14,13 @@ type User struct {
 }
 
 type SavedUser struct {
-	UserId    string
-	UserName  string
-	FirstName string
-	LastName  string
-	Email     string
-	IsPremium string
-	LastLogin string
+	UserId          string
+	UserName        string
+	FirstName       string
+	LastName        string
+	Email           string
+	IsPremium       string
+	PremiumPurchase time.Time
+	PremiumExpiry   time.Time
+	LastLogin       time.Time
 }

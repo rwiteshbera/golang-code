@@ -106,13 +106,13 @@ func Login() gin.HandlerFunc {
 		defer cancel()
 
 		// Query to fetch row by matching the email // Check for existing user
-		queryForExistingEmailCheck := "SELECT user_id, username, firstname, lastname, email, premium, hash_password FROM users WHERE email = ?"
+		queryForExistingEmailCheck := "SELECT user_id, username, firstname, lastname, email, premium, hash_password,premiumPurchase, premiumExpiry FROM users WHERE email = ?"
 
 		var savedUserPassword string
 
 		var savedUserData models.SavedUser
 
-		if err1 := db.QueryRowContext(ctx, queryForExistingEmailCheck, user.Email).Scan(&savedUserData.UserId, &savedUserData.UserName, &savedUserData.FirstName, &savedUserData.LastName, &savedUserData.Email, &savedUserData.IsPremium, &savedUserPassword); err1 == sql.ErrNoRows {
+		if err1 := db.QueryRowContext(ctx, queryForExistingEmailCheck, user.Email).Scan(&savedUserData.UserId, &savedUserData.UserName, &savedUserData.FirstName, &savedUserData.LastName, &savedUserData.Email, &savedUserData.IsPremium, &savedUserPassword, &savedUserData.PremiumPurchase, &savedUserData.PremiumExpiry); err1 == sql.ErrNoRows {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "no user found"})
 			return
 		}
@@ -131,27 +131,57 @@ func Login() gin.HandlerFunc {
 			return
 		}
 
-		// Update the last login data
-		sqlQueryToUpdateLastLogin := "UPDATE users SET last_login = ? WHERE email = ?"
-		statement, err := db.PrepareContext(ctx, sqlQueryToUpdateLastLogin)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
 		LastLogin, _ := time.Parse(time.RFC1123, time.Now().Format(time.RFC1123)) // When the account is last logged in
 
-		res, err := statement.ExecContext(ctx, LastLogin, savedUserData.Email)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+		// Update the last login data
+		// Invalid the Premium if it expires
+
+		// First check if premium membership expires
+		if savedUserData.PremiumExpiry.Before(LastLogin) {
+			// If expires update it to NULL
+			sqlQueryToUpdateLastLoginAndPremium := "UPDATE users SET last_login = ?, premium = 'false', premiumPurchase = NULL, premiumExpiry = NULL WHERE email = ?"
+
+			statement, err := db.PrepareContext(ctx, sqlQueryToUpdateLastLoginAndPremium)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			res, err := statement.ExecContext(ctx, LastLogin, savedUserData.Email)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			rows, err := res.RowsAffected()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"token": token, "rows": rows})
+		} else {
+			// If the user has premium membership, just update the login data
+			sqlQueryToUpdateLastLoginAndPremium := "UPDATE users SET last_login = ?, premiumPurchase = ?, premiumExpiry = ? WHERE email = ?"
+
+			statement, err := db.PrepareContext(ctx, sqlQueryToUpdateLastLoginAndPremium)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			res, err := statement.ExecContext(ctx, LastLogin, savedUserData.Email)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			rows, err := res.RowsAffected()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"token": token, "rows": rows})
 		}
 
-		rows, err := res.RowsAffected()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"token": token, "rows": rows})
 	}
 }
