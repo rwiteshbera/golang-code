@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -53,42 +55,75 @@ func CreatePost() gin.HandlerFunc {
 
 // Upvote a post
 // http://localhost:5000/upvote?post_id=4
-func UpVotePost() gin.HandlerFunc {
+func UpvotePost() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get logged in userid
+		// Get loggedin userid
 		userid, _ := c.Get("userid")
-		post_id := c.Query("post_id")
+		postid := c.Query("post")
 
-		queryToUpvote := "UPDATE posts SET upvote = upvote + 1 WHERE post_id = ? AND posted_by = ?"
-
-		res, err := db.Exec(queryToUpvote, post_id, userid)
+		postid_int, err := strconv.ParseUint(postid, 0, 64)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		rows, err := res.RowsAffected()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		//  Check if user already upvoted the post or not?
+		// condition 1 : If upvoted -> Remove Upvote
+		// condition 2 : If not -> Insert Upvote
 
-		fmt.Println(rows)
-		c.JSON(http.StatusOK, gin.H{"message": "Upvoted"})
+		queryToCheckUpvote := "SELECT upvote_id FROM upvotes WHERE post_id = ? AND upvoted_by = ?"
+
+		var upvote_id int
+
+		err1 := db.QueryRow(queryToCheckUpvote, postid_int, userid).Scan(&upvote_id)
+		if err1 == sql.ErrNoRows {
+			queryToUpvote := "INSERT upvotes (post_id, upvoted_by) VALUES(?, ?)"
+			res, err := db.Exec(queryToUpvote, postid_int, userid)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			rows, err := res.RowsAffected()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			fmt.Println(rows)
+			c.JSON(http.StatusOK, gin.H{"message": "upvoted"})
+		} else {
+			queryToRemoveUpvote := "DELETE FROM upvotes WHERE post_id = ? AND upvoted_by = ?"
+			res, err := db.Exec(queryToRemoveUpvote, postid_int, userid)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			rows, err := res.RowsAffected()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			fmt.Println(rows)
+			c.JSON(http.StatusOK, gin.H{"message": "remove upvote"})
+		}
 	}
 }
 
-// Downvote a post
-// http://localhost:5000/downvote?post_id=3
-func DownVotePost() gin.HandlerFunc {
+func DeletePost() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get logged in userid
+		// Get loggedin userid
 		userid, _ := c.Get("userid")
-		post_id := c.Query("post_id")
+		postid := c.Query("post")
 
-		queryToUpvote := "UPDATE posts SET downvote = downvote + 1 WHERE post_id = ? AND posted_by = ?"
+		postid_int, err := strconv.ParseUint(postid, 0, 64)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-		res, err := db.Exec(queryToUpvote, post_id, userid)
+		queryToRemoveUpvote := "DELETE FROM posts WHERE post_id = ? AND posted_by = ?"
+		res, err := db.Exec(queryToRemoveUpvote, postid_int, userid)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -99,8 +134,7 @@ func DownVotePost() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-
 		fmt.Println(rows)
-		c.JSON(http.StatusOK, gin.H{"message": "Downvoted"})
+		c.JSON(http.StatusOK, gin.H{"message": "Deleted post successfully"})
 	}
 }
