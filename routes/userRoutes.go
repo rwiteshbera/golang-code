@@ -12,4 +12,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/user/edit", controllers.EditUser())                    // Edit account details
 	incomingRoutes.POST("/user/delete", controllers.DeleteAccount())             // Delete user account
 	incomingRoutes.POST("/user/purchase_premium", controllers.PurchasePremium()) // Purchase Premium Membership for 1 Year, 2 Years, 3 Years only
+	incomingRoutes.POST("/create", controllers.CreatePost())                     // Write new post
+	incomingRoutes.POST("/upvote", controllers.UpVotePost())                     // Upvote a post
+	incomingRoutes.POST("/downvote", controllers.DownVotePost())                 // Downvote a post
 }
